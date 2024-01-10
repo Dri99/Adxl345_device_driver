@@ -17,6 +17,6 @@ Some problems executing:
 
 As I was expecting an automatic load from U-Boot, while commands whould have been written by myself
 
-The only dts containing "adxl345@53" is ./arch/arm/boot/dts/socfpga_cyclone5_de0_nano_soc.dts , but it doesn't contain 
+The only dts containing "adxl345@53" is ./arch/arm/boot/dts/socfpga_cyclone5_de0_nano_soc.dts , but we don't compile that, but vexpress-v2p-ca9.dts
 
-
+first compile failed for missing return, added return 0

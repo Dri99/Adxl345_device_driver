@@ -7,9 +7,11 @@
 static int adxl345_probe(struct i2c_client *client,
                      const struct i2c_device_id *id) {
     printk("adxl345_probe function called\n");
+    return 0;
 }
 static int adxl345_remove(struct i2c_client *client) {
     printk("adxl345_remove function called\n");
+    return 0;
 }
 /* The following list allows the association between a device and its driver
 driver in the case of a static initialization without using

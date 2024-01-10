@@ -1,7 +1,6 @@
 ifneq ($(KERNELRELEASE),)
 # kbuild part of makefile
-obj-m
-:= foo.o
+obj-m := adxl345.o
 else
 # normal makefile
 KDIR ?= /lib/modules/`uname -r`/build
