@@ -1,0 +1,22 @@
+Kenrel panics because we didn't give it a root fs which is needed to find /sbin/init
+
+not syncing: VFS: Unable to mount root fs on unknown-block(0,0)
+
+Problem after running in section busybox:
+
+make 
+
+make install
+
+as make install will try to install busybox on host machine. 
+Note: maybe it is a good idea as it will create the required files for next part. Maybe it is bette to mention it in TP text
+Solution: it was actually a problem related to how my hard drive was mounted
+
+Some problems executing:
+10. With U-Boot, load the files in memory 
+
+As I was expecting an automatic load from U-Boot, while commands whould have been written by myself
+
+The only dts containing "adxl345@53" is ./arch/arm/boot/dts/socfpga_cyclone5_de0_nano_soc.dts , but it doesn't contain 
+
+
