@@ -1,9 +1,12 @@
 linux-5.15.6/
-initramfs_busybox/
+linux-5.15.6.tar.xz
 u-boot-2020.10/
-sdcard/
+u-boot-2020.10.tar.bz2
 busybox-1.34.1/
 busybox-1.34.1.tar.bz2
-linux-5.15.6.tar.xz
-initramfs_simple
-u-boot-2020.10.tar.bz2
+qemu/
+qemu-system-arm
+sdcard/
+initramfs_simple/
+initramfs_busybox/
+*.pdf

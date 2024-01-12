@@ -20,3 +20,24 @@ As I was expecting an automatic load from U-Boot, while commands whould have bee
 The only dts containing "adxl345@53" is ./arch/arm/boot/dts/socfpga_cyclone5_de0_nano_soc.dts , but we don't compile that, but vexpress-v2p-ca9.dts
 
 first compile failed for missing return, added return 0
+
+Tp2.5 modified command to run the actual project, in particular the -initrd and -kernel
+Boots correctly
+.6 nothing writes
+
+.7
+
+added the device at the bottom of the dts of vexpress-v2p-ca9.dts
+
+recompile the dtb
+
+Apparently now the driver is loaded
+
+recompile qemu from sources to avoid error messages
+
+error running the launch command  : 
+qemu-system-arm: -device virtio-9p-device,fsdev=mnt,mount_tag=mnt: 'virtio-9p-device' is not a valid device model name
+possible solution at 
+https://stackoverflow.com/questions/50370768/qemu-virtio-9p-pci-is-not-a-valid-device-model-name
+
+recompiling with given option

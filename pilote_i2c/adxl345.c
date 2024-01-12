@@ -6,7 +6,23 @@
 
 static int adxl345_probe(struct i2c_client *client,
                      const struct i2c_device_id *id) {
+    int transfered;
+    char buf;
     printk("adxl345_probe function called\n");
+    buf = 0x0;
+    transfered = i2c_master_send(client,&buf, 1);
+    if(transfered!= 1){
+        pr_warn("Cannot write to device, wrote %d\n", transfered);
+        return -1;
+    }
+    pr_info("Reading DEVID register...\n");
+    transfered = i2c_master_recv(client,&buf, 1);
+    if(transfered != 1){
+        pr_warn("Cannot read from device\n");
+        return -1;
+    }
+    pr_info("DEVID: %x\n", (unsigned int)buf & 0xFF);
+
     return 0;
 }
 static int adxl345_remove(struct i2c_client *client) {
