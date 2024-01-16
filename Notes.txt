@@ -41,3 +41,8 @@ possible solution at
 https://stackoverflow.com/questions/50370768/qemu-virtio-9p-pci-is-not-a-valid-device-model-name
 
 recompiling with given option
+
+error for a deprecated library libbpf, applied the patch from 
+
+https://patchew.org/QEMU/20220527190658.169439-1-i@hexchain.org/
+

@@ -3,32 +3,146 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
+typedef enum {
+    DEVID = 0x00,
+    BW_RATE = 0x2C,
+    POWER_CTL = 0x2D,
+    INT_ENABLE = 0x2E,
+    DATA_FORMAT = 0x31,
+    FIFO_CTL = 0x38,
+} adxl345_register_t;
 
-static int adxl345_probe(struct i2c_client *client,
-                     const struct i2c_device_id *id) {
+int read_register(struct i2c_client *client, adxl345_register_t address, unsigned char *data);
+int write_register(struct i2c_client *client, adxl345_register_t address, unsigned char *data);
+
+int read_register(struct i2c_client *client, adxl345_register_t address, unsigned char *data) {
     int transfered;
-    char buf;
-    printk("adxl345_probe function called\n");
-    buf = 0x0;
-    transfered = i2c_master_send(client,&buf, 1);
-    if(transfered!= 1){
-        pr_warn("Cannot write to device, wrote %d\n", transfered);
+    unsigned char add_buf = address;
+    transfered = i2c_master_send(client, &add_buf, 1);
+    if (transfered != 1) {
         return -1;
     }
-    pr_info("Reading DEVID register...\n");
-    transfered = i2c_master_recv(client,&buf, 1);
-    if(transfered != 1){
-        pr_warn("Cannot read from device\n");
+    transfered = i2c_master_recv(client, data, 1);
+    if (transfered != 1) {
+        return -2;
+    }
+    return transfered;
+}
+
+int write_register(struct i2c_client *client, adxl345_register_t address, unsigned char *data) {
+    int transfered;
+    unsigned char add_buf = address;
+    transfered = i2c_master_send(client, &add_buf, 1);
+    if (transfered != 1) {
+        return -1;
+    }
+    transfered = i2c_master_send(client, data, 1);
+    if (transfered != 1) {
+        return -2;
+    }
+    return transfered;
+}
+
+static int adxl345_probe(struct i2c_client *client,
+                         const struct i2c_device_id *id) {
+    int transfered;
+    unsigned char buf;
+    printk("adxl345_probe function called\n");
+
+    // Reading DEVID
+    transfered = read_register(client, DEVID, &buf);
+    if (transfered < 0) {
+        pr_warn("Error reading adxl345\n");
         return -1;
     }
     pr_info("DEVID: %x\n", (unsigned int)buf & 0xFF);
 
+    // Setting 100Hz communication speed
+    transfered = read_register(client, BW_RATE, &buf);
+    if (transfered < 0) {
+        pr_warn("Error reading adxl345\n");
+        return -2;
+    }
+
+    buf = (buf & 0xf0) | 0x0a;  // Writing code 0xa on lower bits of BW_RATE
+
+    transfered = write_register(client, BW_RATE, &buf);
+    if (transfered < 0) {
+        pr_warn("Error writing adxl345\n");
+        return -2;
+    }
+
+    // Disabling interrupts
+    buf = (buf & 0x00);
+    transfered = write_register(client, INT_ENABLE, &buf);
+    if (transfered < 0) {
+        pr_warn("Error writing adxl345\n");
+        return -3;
+    }
+
+    // Defaulting DATA_FORMAT register
+    buf = (buf & 0x00);
+    transfered = write_register(client, DATA_FORMAT, &buf);
+    if (transfered < 0) {
+        pr_warn("Error writing adxl345\n");
+        return -4;
+    }
+
+    // Setting FIFO bypass
+    transfered = read_register(client, FIFO_CTL, &buf);
+    if (transfered < 0) {
+        pr_warn("Error reading adxl345\n");
+        return -5;
+    }
+
+    buf = (buf & 0x3F);  // zeroing 2 MSb of FIFO_CTL
+
+    transfered = write_register(client, FIFO_CTL, &buf);
+    if (transfered < 0) {
+        pr_warn("Error writing adxl345\n");
+        return -5;
+    }
+
+    // Setting Measurement mode
+    transfered = read_register(client, POWER_CTL, &buf);
+    if (transfered < 0) {
+        pr_warn("Error reading adxl345\n");
+        return -6;
+    }
+
+    buf = (buf | (0x1 << 3));  // Setting bit 3 (Measurement)
+
+    transfered = write_register(client, POWER_CTL, &buf);
+    if (transfered < 0) {
+        pr_warn("Error writing adxl345\n");
+        return -6;
+    }
+    pr_info("Set up of the device completed\n");
     return 0;
 }
 static int adxl345_remove(struct i2c_client *client) {
-    printk("adxl345_remove function called\n");
+    // Setting Standby mode
+    unsigned char buf;
+    int transfered;
+
+    transfered = read_register(client, POWER_CTL, &buf);
+    if (transfered < 0) {
+        pr_warn("Error reading adxl345\n");
+        return -7;
+    }
+
+    buf = (buf & !(0x1 << 3));  // Resetting bit 3 (Measurement)
+
+    transfered = write_register(client, POWER_CTL, &buf);
+    if (transfered < 0) {
+        pr_warn("Error writing adxl345\n");
+        return -7;
+    }
+
+    pr_info("adxl345_remove: device in standby\n");
     return 0;
 }
+
 /* The following list allows the association between a device and its driver
 driver in the case of a static initialization without using
 device tree.
