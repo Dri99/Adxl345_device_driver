@@ -5,8 +5,8 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/sysfs.h>
+#include <linux/string.h>
 #include <stdbool.h>
-#include <string.h>
 
 #define MAX_DEVICES 128
 typedef enum {
@@ -166,7 +166,7 @@ adxl345_probe(struct i2c_client *client,
     }
 
     adxl345_device_->id = adxl345_id;
-    adxl345_device_->signature = 
+    adxl345_device_->signature = 123456789;
     adxl345_device_->miscdev.minor = MISC_DYNAMIC_MINOR;
     adxl345_device_->miscdev.fops = &adxl345_fileopts;
     adxl345_device_->miscdev.this_device = NULL;
@@ -182,6 +182,7 @@ adxl345_probe(struct i2c_client *client,
         pr_warn("error\n");
     }
     misc_register(&(adxl345_device_->miscdev));
+    pr_info("the i2c_client struct*=%x\n",client);
 
     i2c_set_clientdata(client,(void*)adxl345_device_);
     return 0;
@@ -220,14 +221,15 @@ ssize_t adxl345_read(struct file *file, char __user *buf, size_t count, loff_t *
     struct miscdevice* miscdev; 
     struct i2c_client* client;
     struct adxl345_device* adxl345_device_; 
+    char buffer[256];
     pr_info("Read called!\n");
     miscdev = (struct miscdevice*)file->private_data;
     adxl345_device_ = container_of(miscdev,struct adxl345_device,miscdev); 
-    pr_info("adxl345_device_->signature:%d",)
-    char buffer[256];
+    pr_info("adxl345_device_->signature:%d",adxl345_device_->signature);
     strncpy(buffer,miscdev->name,256);
     pr_info("miscdevice name: %s\n",buffer);
     client = container_of(miscdev->parent,struct i2c_client,dev); 
+    pr_info("struct i2c_client*:%x\n",client);
     read_register(client,DATAX0, buf);
     return 1;
     

@@ -60,3 +60,7 @@ https://embetronicx.com/tutorials/linux/device-drivers/misc-device-driver/#Misc_
 
 Bruno doesn't have the same problem
 solved by looking at /include/linux/
+the solution was to initialise the groups data in miscdev, 
+though I think there is something more because bruno and alaf don't need it
+
+read fails added some printf to check the error
