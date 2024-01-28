@@ -46,3 +46,17 @@ error for a deprecated library libbpf, applied the patch from
 
 https://patchew.org/QEMU/20220527190658.169439-1-i@hexchain.org/
 
+How to register to misc file? 
+location found on:
+https://elixir.bootlin.com/linux/latest/source/include/linux/miscdevice.h#L91
+
+for kmalloc, we used GFP_KERNEL but we have no idea if it was a good idea. GFP_KERNEL shuould be reserved when we run for a process
+
+segmentation fault given by the kasprintf()
+
+segmentation fault given by missing group
+found:
+https://embetronicx.com/tutorials/linux/device-drivers/misc-device-driver/#Misc_Device_Structure
+
+Bruno doesn't have the same problem
+solved by looking at /include/linux/

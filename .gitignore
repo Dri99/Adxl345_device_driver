@@ -9,4 +9,5 @@ qemu-system-arm
 sdcard/
 initramfs_simple/
 initramfs_busybox/
+img/
 *.pdf
