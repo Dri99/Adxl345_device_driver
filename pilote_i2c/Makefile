@@ -6,4 +6,5 @@ else
 KDIR ?= /lib/modules/`uname -r`/build
 default:
 	$(MAKE) -C $(KDIR) M=$$PWD
+	cp adxl345.ko ../shared/ 
 endif

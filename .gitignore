@@ -11,3 +11,4 @@ initramfs_simple/
 initramfs_busybox/
 img/
 *.pdf
+*.ko

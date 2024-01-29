@@ -37,114 +37,10 @@ ssize_t adxl345_read(struct file *file, char __user *buf, size_t count, loff_t *
 static struct file_operations adxl345_fileopts = {
     .read = adxl345_read
 };
-int read_register(struct i2c_client *client, adxl345_register_t address, unsigned char *data);
-int write_register(struct i2c_client *client, adxl345_register_t address, unsigned char *data);
+static int read_register(struct i2c_client *client, adxl345_register_t address, unsigned char *data);
+static int write_register(struct i2c_client *client, adxl345_register_t address, unsigned char *data);
+static int setup_adxl345(struct i2c_client *client);
 
-
-int read_register(struct i2c_client *client, adxl345_register_t address, unsigned char *data) {
-    int transfered;
-    unsigned char add_buf = address;
-    transfered = i2c_master_send(client, &add_buf, 1);
-    if (transfered != 1) {
-        return -1;
-    }
-    transfered = i2c_master_recv(client, data, 1);
-    if (transfered != 1) {
-        return -2;
-    }
-    return transfered;
-}
-
-int write_register(struct i2c_client *client, adxl345_register_t address, unsigned char *data) {
-    int transfered;
-    unsigned char add_buf = address;
-    transfered = i2c_master_send(client, &add_buf, 1);
-    if (transfered != 1) {
-        return -1;
-    }
-    transfered = i2c_master_send(client, data, 1);
-    if (transfered != 1) {
-        return -2;
-    }
-    return transfered;
-}
-
-static int setup_adxl345(struct i2c_client *client) {
-    int transfered;
-    unsigned char buf;
-    printk("adxl345_probe function called\n");
-
-    // Reading DEVID
-    transfered = read_register(client, DEVID, &buf);
-    if (transfered < 0) {
-        pr_warn("Error reading adxl345\n");
-        return -1;
-    }
-    pr_info("DEVID: %x\n", (unsigned int)buf & 0xFF);
-
-    // Setting 100Hz communication speed
-    transfered = read_register(client, BW_RATE, &buf);
-    if (transfered < 0) {
-        pr_warn("Error reading adxl345\n");
-        return -2;
-    }
-
-    buf = (buf & 0xf0) | 0x0a;  // Writing code 0xa on lower bits of BW_RATE
-
-    transfered = write_register(client, BW_RATE, &buf);
-    if (transfered < 0) {
-        pr_warn("Error writing adxl345\n");
-        return -2;
-    }
-
-    // Disabling interrupts
-    buf = (buf & 0x00);
-    transfered = write_register(client, INT_ENABLE, &buf);
-    if (transfered < 0) {
-        pr_warn("Error writing adxl345\n");
-        return -3;
-    }
-
-    // Defaulting DATA_FORMAT register
-    buf = (buf & 0x00);
-    transfered = write_register(client, DATA_FORMAT, &buf);
-    if (transfered < 0) {
-        pr_warn("Error writing adxl345\n");
-        return -4;
-    }
-
-    // Setting FIFO bypass
-    transfered = read_register(client, FIFO_CTL, &buf);
-    if (transfered < 0) {
-        pr_warn("Error reading adxl345\n");
-        return -5;
-    }
-
-    buf = (buf & 0x3F);  // zeroing 2 MSb of FIFO_CTL
-
-    transfered = write_register(client, FIFO_CTL, &buf);
-    if (transfered < 0) {
-        pr_warn("Error writing adxl345\n");
-        return -5;
-    }
-
-    // Setting Measurement mode
-    transfered = read_register(client, POWER_CTL, &buf);
-    if (transfered < 0) {
-        pr_warn("Error reading adxl345\n");
-        return -6;
-    }
-
-    buf = (buf | (0x1 << 3));  // Setting bit 3 (Measurement)
-
-    transfered = write_register(client, POWER_CTL, &buf);
-    if (transfered < 0) {
-        pr_warn("Error writing adxl345\n");
-        return -6;
-    }
-    pr_info("Set up of the device completed\n");
-    return 0;
-}
 static int get_new_id(void);
 static void free_id(int);
 
@@ -231,9 +127,118 @@ ssize_t adxl345_read(struct file *file, char __user *buf, size_t count, loff_t *
     client = container_of(miscdev->parent,struct i2c_client,dev); 
     pr_info("struct i2c_client*:%lx\n",(unsigned long)client);
 
-    read_register(client,DEV, buffer);
+    read_register(client,DEVID, buffer);
     return 1;
     
+}
+
+static int setup_adxl345(struct i2c_client *client) {
+    int transfered;
+    unsigned char buf;
+    printk("adxl345_probe function called\n");
+
+    // Reading DEVID
+    transfered = read_register(client, DEVID, &buf);
+    if (transfered < 0) {
+        pr_warn("Error reading adxl345\n");
+        return -1;
+    }
+    pr_info("DEVID: %x\n", (unsigned int)buf & 0xFF);
+
+    // Setting 100Hz communication speed
+    transfered = read_register(client, BW_RATE, &buf);
+    if (transfered < 0) {
+        pr_warn("Error reading adxl345\n");
+        return -2;
+    }
+
+    buf = (buf & 0xf0) | 0x0a;  // Writing code 0xa on lower bits of BW_RATE
+
+    transfered = write_register(client, BW_RATE, &buf);
+    if (transfered < 0) {
+        pr_warn("Error writing adxl345\n");
+        return -2;
+    }
+
+    // Disabling interrupts
+    buf = (buf & 0x00);
+    transfered = write_register(client, INT_ENABLE, &buf);
+    if (transfered < 0) {
+        pr_warn("Error writing adxl345\n");
+        return -3;
+    }
+
+    // Defaulting DATA_FORMAT register
+    buf = (buf & 0x00);
+    transfered = write_register(client, DATA_FORMAT, &buf);
+    if (transfered < 0) {
+        pr_warn("Error writing adxl345\n");
+        return -4;
+    }
+
+    // Setting FIFO bypass
+    transfered = read_register(client, FIFO_CTL, &buf);
+    if (transfered < 0) {
+        pr_warn("Error reading adxl345\n");
+        return -5;
+    }
+
+    buf = (buf & 0x3F);  // zeroing 2 MSb of FIFO_CTL
+
+    transfered = write_register(client, FIFO_CTL, &buf);
+    if (transfered < 0) {
+        pr_warn("Error writing adxl345\n");
+        return -5;
+    }
+
+    // Setting Measurement mode
+    transfered = read_register(client, POWER_CTL, &buf);
+    if (transfered < 0) {
+        pr_warn("Error reading adxl345\n");
+        return -6;
+    }
+
+    buf = (buf | (0x1 << 3));  // Setting bit 3 (Measurement)
+
+    transfered = write_register(client, POWER_CTL, &buf);
+    if (transfered < 0) {
+        pr_warn("Error writing adxl345\n");
+        return -6;
+    }
+    pr_info("Set up of the device completed\n");
+    return 0;
+}
+
+static int read_multiple_registers(struct i2c_client *client, adxl345_register_t* addresses, unsigned char *data) {
+    return 0;
+}
+
+static int read_register(struct i2c_client *client, adxl345_register_t address, unsigned char *data) {
+    int transfered;
+    unsigned char add_buf = address;
+    transfered = i2c_master_send(client, &add_buf, 1);
+    if (transfered != 1) {
+        return -1;
+    }
+    transfered = i2c_master_recv(client, data, 1);
+    if (transfered != 1) {
+        return -2;
+    }
+    return transfered;
+}
+
+static int write_register(struct i2c_client *client, adxl345_register_t address, unsigned char *data) {
+    int transfered;
+    unsigned char add_buf = address;
+    transfered = i2c_master_send(client, &add_buf, 1);
+    if (transfered != 1) {
+        return -1;
+    }
+    transfered = i2c_master_send(client, data, 1);
+    if (transfered != 1) {
+        return -2;
+    }
+    return transfered;
 }
 
 int get_new_id(void) {
