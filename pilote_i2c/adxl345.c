@@ -182,7 +182,7 @@ adxl345_probe(struct i2c_client *client,
         pr_warn("error\n");
     }
     misc_register(&(adxl345_device_->miscdev));
-    pr_info("the i2c_client struct*=%x\n",client);
+    pr_info("the i2c_client struct*=%lx\n",(unsigned long)client);
 
     i2c_set_clientdata(client,(void*)adxl345_device_);
     return 0;
@@ -229,8 +229,9 @@ ssize_t adxl345_read(struct file *file, char __user *buf, size_t count, loff_t *
     strncpy(buffer,miscdev->name,256);
     pr_info("miscdevice name: %s\n",buffer);
     client = container_of(miscdev->parent,struct i2c_client,dev); 
-    pr_info("struct i2c_client*:%x\n",client);
-    read_register(client,DATAX0, buf);
+    pr_info("struct i2c_client*:%lx\n",(unsigned long)client);
+
+    read_register(client,DEV, buffer);
     return 1;
     
 }
