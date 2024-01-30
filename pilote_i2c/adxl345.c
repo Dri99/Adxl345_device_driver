@@ -6,6 +6,7 @@
 #include <linux/of.h>
 #include <linux/sysfs.h>
 #include <linux/string.h>
+#include <asm/uaccess.h>
 #include <stdbool.h>
 
 #define MAX_DEVICES 128
@@ -16,6 +17,11 @@ typedef enum {
     INT_ENABLE = 0x2E,
     DATA_FORMAT = 0x31,
     DATAX0 = 0x32,
+    DATAX1 = 0x33,
+    DATAY0 = 0x34,
+    DATAY1 = 0x35,
+    DATAZ0 = 0x36,
+    DATAZ1 = 0x37,
     FIFO_CTL = 0x38,
 } adxl345_register_t;
 
@@ -32,6 +38,7 @@ static struct attribute* adxl345_attrs [] = {
     NULL,
 };
 ATTRIBUTE_GROUPS(adxl345);
+
 ssize_t adxl345_read(struct file *file, char __user *buf, size_t count, loff_t *f_pos);
 
 static struct file_operations adxl345_fileopts = {
@@ -113,23 +120,44 @@ static int adxl345_remove(struct i2c_client *client) {
     return 0;
 }
 
+/*
+struct adxl345_device* adxl345_device_; 
+    char buffer[256];
+    adxl345_device_ = container_of(miscdev,struct adxl345_device,miscdev); 
+    strncpy(buffer,miscdev->name,256);
+    pr_info("miscdevice name: %s\n",buffer);
+    pr_info("struct i2c_client*:%lx\n",(unsigned long)client);
+    pr_info("adxl345_device_->signature:%d",adxl345_device_->signature);
+*/
 ssize_t adxl345_read(struct file *file, char __user *buf, size_t count, loff_t *f_pos){
     struct miscdevice* miscdev; 
     struct i2c_client* client;
-    struct adxl345_device* adxl345_device_; 
-    char buffer[256];
+    int retval;
+    short k_buf = 0;
+
     pr_info("Read called!\n");
     miscdev = (struct miscdevice*)file->private_data;
-    adxl345_device_ = container_of(miscdev,struct adxl345_device,miscdev); 
-    pr_info("adxl345_device_->signature:%d",adxl345_device_->signature);
-    strncpy(buffer,miscdev->name,256);
-    pr_info("miscdevice name: %s\n",buffer);
     client = container_of(miscdev->parent,struct i2c_client,dev); 
-    pr_info("struct i2c_client*:%lx\n",(unsigned long)client);
-
-    read_register(client,DEVID, buffer);
-    return 1;
     
+    read_register(client,POWER_CTL, (char*)&k_buf);
+    pr_info("POWERCTL : %x\n",(unsigned int)k_buf & 0xFF);
+
+    if(count == 1){
+        retval = read_register(client,DATAX0, (char*)&k_buf);
+        if(retval < 0)
+            return 0;
+    }else{
+        retval = read_register(client,DATAX0, &((char*)&k_buf)[0]);
+        if(retval < 0)
+            return 0;
+        retval = read_register(client,DATAX1, &((char*)&k_buf)[1]);
+        if(retval < 0)
+            count = 1;
+        count = 2;
+    }
+
+    put_user(k_buf, (short __user*)buf);
+    return count;
 }
 
 static int setup_adxl345(struct i2c_client *client) {
@@ -199,12 +227,13 @@ static int setup_adxl345(struct i2c_client *client) {
     }
 
     buf = (buf | (0x1 << 3));  // Setting bit 3 (Measurement)
-
+    
     transfered = write_register(client, POWER_CTL, &buf);
     if (transfered < 0) {
         pr_warn("Error writing adxl345\n");
         return -6;
     }
+    pr_info("POWER_CTL: %x\n", (unsigned int)buf & 0xFF);
     pr_info("Set up of the device completed\n");
     return 0;
 }
@@ -229,14 +258,13 @@ static int read_register(struct i2c_client *client, adxl345_register_t address, 
 
 static int write_register(struct i2c_client *client, adxl345_register_t address, unsigned char *data) {
     int transfered;
-    unsigned char add_buf = address;
-    transfered = i2c_master_send(client, &add_buf, 1);
-    if (transfered != 1) {
+    char buf[2];
+    buf[0] = address;
+    buf[1] = &data;
+
+    transfered = i2c_master_send(client, buf, 2);
+    if (transfered != 2) {
         return -1;
-    }
-    transfered = i2c_master_send(client, data, 1);
-    if (transfered != 1) {
-        return -2;
     }
     return transfered;
 }
@@ -256,6 +284,7 @@ int get_new_id(void) {
         first_id_available++;
     return returned_id;
 }
+
 static void free_id(int id){
 	// TODO: This function will have to be made atomic later
     used_ids[id]= false;

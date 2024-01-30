@@ -10,5 +10,6 @@ sdcard/
 initramfs_simple/
 initramfs_busybox/
 img/
+shared/
 *.pdf
 *.ko
