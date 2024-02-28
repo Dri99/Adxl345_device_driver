@@ -64,3 +64,23 @@ the solution was to initialise the groups data in miscdev,
 though I think there is something more because bruno and alaf don't need it
 
 read fails added some printf to check the error
+
+useful links:
+http://www.makelinux.net/ldd3/chp-8-sect-1.shtml
+https://elixir.bootlin.com/linux/v5.15.6/source/include/linux/sysfs.h#L79
+https://elixir.bootlin.com/linux/v5.15.6/source/net/wireless/sysfs.c#L76
+https://elixir.bootlin.com/linux/v5.15.6/source/include/linux/miscdevice.h#L91
+https://elixir.bootlin.com/linux/v5.15.6/source/drivers/char/misc.c#L155
+https://elixir.bootlin.com/linux/v5.15.6/source/drivers/base/core.c#L4101
+https://dri.freedesktop.org/docs/drm/driver-api/driver-model/device.html
+https://dri.freedesktop.org/docs/drm/filesystems/sysfs.html#using-sysfs
+use of container of
+https://stackoverflow.com/questions/15832301/understanding-container-of-macro-in-the-linux-kernel
+declare file operations (static, dynamic)
+https://stackoverflow.com/questions/63448253/file-operation-in-drivers-and-struct-declaration
+ioctl doc(meh)
+https://www.kernel.org/doc/Documentation/driver-api/ioctl.rst
+suggestion on modifying private data
+https://itecnote.com/tecnote/device-specific-data-structure-with-platform-driver-and-character-device-interface/
+ioctl tutorial
+https://embetronicx.com/tutorials/linux/device-drivers/ioctl-tutorial-in-linux/
