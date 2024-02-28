@@ -7,11 +7,15 @@
 #include <linux/of.h>
 #include <linux/sysfs.h>
 #include <linux/string.h>
-#include <asm/uaccess.h>
+#include <linux/kfifo.h>
+#include <linux/wait.h>
 #include <linux/ioctl.h>
+#include <linux/interrupt.h>
+#include <asm/uaccess.h>
 #include <stdbool.h>
 
 #define MAX_DEVICES 128
+#define MAX_FIFO_EL 128
 typedef enum
 {
 	DEVID = 0x00,
@@ -26,11 +30,20 @@ typedef enum
 	DATAZ0 = 0x36,
 	DATAZ1 = 0x37,
 	FIFO_CTL = 0x38,
+	FIFO_STATUS = 0x39,
 } adxl345_register_t;
+
+struct adxl345_sample{
+	int16_t X;
+	int16_t Y;
+	int16_t Z;
+};
 
 struct adxl345_device
 {
 	int id;
+	DECLARE_KFIFO(samples_fifo, struct adxl345_sample, 128);
+	struct wait_queue_head queue;
 	struct miscdevice miscdev;
 };
 
@@ -51,6 +64,8 @@ static int setup_adxl345(struct i2c_client *client);
 
 static int get_new_id(void);
 static void free_id(int);
+
+irqreturn_t adxl345_int(int irq, void *dev_id);
 
 int adxl345_open(struct inode *inode, struct file *file);
 long adxl345_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg);

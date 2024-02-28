@@ -20,8 +20,8 @@ adxl345_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
 	int adxl345_id;
+	int err;
 	struct adxl345_device *adxl345_device_;
-	setup_adxl345(client);
 
 	adxl345_device_ = NULL;
 	adxl345_device_ = kmalloc(sizeof(struct adxl345_device), GFP_KERNEL);
@@ -36,6 +36,8 @@ adxl345_probe(struct i2c_client *client,
 	}
 
 	adxl345_device_->id = adxl345_id;
+	INIT_KFIFO(adxl345_device_->samples_fifo);
+	init_waitqueue_head(&adxl345_device_->queue);
 	adxl345_device_->miscdev.minor = MISC_DYNAMIC_MINOR;
 	adxl345_device_->miscdev.fops = &adxl345_fileopts;
 	adxl345_device_->miscdev.this_device = NULL;
@@ -52,10 +54,17 @@ adxl345_probe(struct i2c_client *client,
 		pr_warn("error\n");
 	}
 	misc_register(&(adxl345_device_->miscdev));
-	pr_info("the i2c_client struct*=%lx\n", (unsigned long)client);
 
+	err = request_threaded_irq(client->irq, NULL, adxl345_int,
+							 IRQF_ONESHOT,
+							 adxl345_device_->miscdev.name,
+							 (void*)adxl345_device_);
+	if(err <0 )
+		return -1;
 	i2c_set_clientdata(client, (void *)adxl345_device_);
-	return 0;
+	
+	err = setup_adxl345(client);
+	return err;
 }
 static int adxl345_remove(struct i2c_client *client)
 {
@@ -82,12 +91,53 @@ static int adxl345_remove(struct i2c_client *client)
 
 	pr_info("adxl345_remove: device in standby\n");
 	adxl345_device_ = (struct adxl345_device *)i2c_get_clientdata(client);
+	
+	free_irq(client->irq, (void*)adxl345_device_);
+	//disable_irq(client->irq);
 	free_id(adxl345_device_->id);
 	misc_deregister(&(adxl345_device_->miscdev));
 
 	kfree(adxl345_device_->miscdev.name);
 	kfree(adxl345_device_);
 	return 0;
+}
+
+irqreturn_t adxl345_int(int irq, void *dev_id)
+{
+	struct adxl345_device *adxl345_device_;
+	struct i2c_client* client;
+	uint8_t h_fifo_elements = 0;
+	int err;
+	
+	adxl345_device_ = (struct adxl345_device *)dev_id;
+
+	client = container_of(adxl345_device_->miscdev.parent, struct i2c_client, dev);
+	if (irq != client->irq)
+		return IRQ_NONE;
+
+	err = read_register(client,FIFO_STATUS,&h_fifo_elements);
+	h_fifo_elements = h_fifo_elements & 0x1F;
+	//pr_info("adxl345 called\n");
+	//Empty HW FIFO
+	while(h_fifo_elements > 0){
+		struct adxl345_sample sample;
+		struct adxl345_sample discarded;
+		err = read_multiple_registers(client, DATAX0,(char*)&sample, 6);
+		if(err != 6){
+			pr_warn("Failed to read from adxl345 fifo\n");
+			h_fifo_elements--;
+			continue;
+		}
+		//pr_info("IRQ Test Read X:%d\tY:%d\tZ:%d\n",sample.X,sample.Y,sample.Z);
+		while((err = kfifo_put(&adxl345_device_->samples_fifo, sample)) == 0){
+			err = kfifo_get(&adxl345_device_->samples_fifo, &discarded);
+			//pr_warn("discarding value X:%d\tY:%d\tZ:%d\n",discarded.X,discarded.Y,discarded.Z);
+		}	
+		h_fifo_elements--;	
+	}
+
+	wake_up(&adxl345_device_->queue);
+	return IRQ_HANDLED;
 }
 
 /*
@@ -138,7 +188,6 @@ ssize_t adxl345_read(struct file *file, char __user *buf, size_t count, loff_t *
 		put_user(k_buf, buf);
 	}
 
-	
 	return retval;
 }
 
@@ -216,15 +265,6 @@ static int setup_adxl345(struct i2c_client *client)
 		return -2;
 	}
 
-	// Disabling interrupts
-	buf = (buf & 0x00);
-	transfered = write_register(client, INT_ENABLE, &buf);
-	if (transfered < 0)
-	{
-		pr_warn("Error writing adxl345\n");
-		return -3;
-	}
-
 	// Defaulting DATA_FORMAT register
 	buf = (buf & 0x00);
 	transfered = write_register(client, DATA_FORMAT, &buf);
@@ -234,15 +274,10 @@ static int setup_adxl345(struct i2c_client *client)
 		return -4;
 	}
 
-	// Setting FIFO bypass
-	transfered = read_register(client, FIFO_CTL, &buf);
-	if (transfered < 0)
-	{
-		pr_warn("Error reading adxl345\n");
-		return -5;
-	}
-
-	buf = (buf & 0x3F); // zeroing 2 MSb of FIFO_CTL
+	// Setting FIFO STream
+	// 		1 0    |      0       	| 0x14
+	// 		Stream | Trigger=INT1	| 20 Samples
+	buf = (0x2 << 6) | (0 << 5) | (0x14);
 
 	transfered = write_register(client, FIFO_CTL, &buf);
 	if (transfered < 0)
@@ -257,6 +292,16 @@ static int setup_adxl345(struct i2c_client *client)
 	{
 		pr_warn("Error reading adxl345\n");
 		return -6;
+	}
+
+	// Enabling watermark interrupts
+	buf = 0x1 << 1;
+
+	transfered = write_register(client, INT_ENABLE, &buf);
+	if (transfered < 0)
+	{
+		pr_warn("Error writing adxl345\n");
+		return -3;
 	}
 
 	buf = (buf | (0x1 << 3)); // Setting bit 3 (Measurement)
@@ -281,7 +326,6 @@ static int read_multiple_registers(struct i2c_client *client, adxl345_register_t
 		return -1;
 
 	return i2c_master_recv(client, data, num);
-	
 }
 
 static int read_register(struct i2c_client *client, adxl345_register_t address, unsigned char *data)

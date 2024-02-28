@@ -2,7 +2,7 @@
 ./qemu-system-arm -nographic -machine vexpress-a9 \
         -kernel linux-5.15.6/build/arch/arm/boot/zImage \
         -dtb linux-5.15.6/build/arch/arm/boot/dts/vexpress-v2p-ca9.dtb \
-        -initrd initramfs_busybox/initramfs.gz \
+        -initrd initramfs_busybox/initramfs.new.gz \
         -fsdev local,path=shared,security_model=mapped,id=mnt \
         -device virtio-9p-device,fsdev=mnt,mount_tag=mnt -s
 
